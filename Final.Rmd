@@ -1,0 +1,352 @@
+---
+title: "Final"
+output: html_document
+---
+```{r}
+setwd("/Users/jessicasaini/Desktop/UoW/Stat 847/Final Project")
+library(GGally)
+library(tidyverse)
+library(mice)
+library(sentimentr)
+library(plyr)
+```
+
+#Reading The data
+```{r}
+df = read.csv("Gamelog T20I Stat 847.csv")
+head(df)
+#View(df)
+
+df2 = df%>% filter(df$Inning==2) 
+text<- df2$FullNotes
+head(text)
+```
+#Question 1
+
+```{r}
+t20_df = subset(df, df$Format=="T20I")
+#View(t20_df)
+
+#Check for NA values
+
+#Change -1 in NumOutcome to 0 
+t20_df$NumOutcome[t20_df$NumOutcome == -1]<-0
+t20_df$TotalRunsAtThisInstant =0
+batsmen = unique(t20_df$Batsman)
+```
+
+
+```{r}
+#matches = unique(t20_df$MatchNo)
+matches = c(33,161)
+count =0 
+for(i in matches){
+  runs = 0
+  dataset <- subset(t20_df,MatchNo %in% i)
+  for(j in 1:nrow(dataset)){
+    #Loop over every row
+    row = dataset[j,]
+    runs = runs + row$NumOutcome
+    #print(runs)
+    row$TotalRunsAtThisInstant = runs
+    dataset[j,22] = runs
+    t20_df[t20_df$MatchNo==i,]
+    #print(row$TotalRunsAtThisInstant)
+  }
+}
+
+View(appended)
+```
+
+#Probability of a ball being "wide","leg bye","bye","wides", "leg byes", "byes"
+t20_df_BallType = t20_df %>% filter(BallType %in% c("wide","leg bye","bye","wides", "leg byes", "byes"))
+t20_df_BallType = t20_df %>% filter(BallType %in% c("wide","leg bye","bye","wides", "leg byes", "byes"))
+
+ggplot(t20_df_BallType, mapping = aes(x = Ball, y = Wickets, fill = NumOutcome )) + geom_point()+
++     ylim(0,10) 
+
+# Sentiment Analysis
+```{r}
+#Split your text data into sentences 
+text<- get_sentences(text)
+
+```
+
+```{r}
+analysis = sentiment(text)
+```
+```{r}
+summary(analysis$sentiment)
+analysis %>% filter(between(sentiment,-1,1)) ->  bounded_sentences
+```
+
+```{r}
+View(bounded_sentences)
+```
+
+
+##Question 3 
+Aggregate the matches (hint: the ddply
+function in the K-means clustering section is great for this) and apply K-means clustering to the matches to find some meaningful archetypes of games.
+
+Example clusters: high scoring games, very close games, games
+with early wickets, etc.
+```{r}
+
+df3 = df 
+
+df_profiles = ddply(df3, "MatchNo", summarize,
+    total_runs = sum( pmax(NumOutcome, 0)),
+    runs_1stinning = sum(pmax(NumOutcome*1(inning == 1), 0)),
+total_wickets = length(which(NumOutcome == 1)),
+fielder_mentions = length(which(Fielder != "")),
+balls_until_1st_wicket = length(which(wickets == 0)),
+average_wickets_in_during_match = mean(wickets, na.rm=TRUE))
+
+```
+
+
+#Testing
+```{r}
+for(i in matches){
+runs =0 
+t2<-t2%>% 
+  mutate(TotalRunsInstant = if_else(t2$MatchNo==i,runs+t2$NumOutcome,0))
+runs = runs+t2$NumOutcome
+}
+```
+
+```{r}
+matches = c(33)
+for (i in matches){
+  matchnum =i 
+  print(matchnum)
+  runs = 0
+  
+  for(j in 1:nrow(t2)){
+  if(t2$MatchNo==matchnum){#For every match
+  
+    }
+    
+  }
+  
+}
+
+```
+
+#Relative frequency 
+```{r}
+
+a = a[, c("MatchNo", "NumOutcome", "Wickets", "Over")]
+a["Rel_Freq"]<-0
+freq = table(a$NumOutcome)/length(a$NumOutcome)
+freq = data.frame(freq)
+outcomes <- unique(a$NumOutcome)
+
+for (i in outcomes){
+for(j in 1:nrow(a)){
+  if(a[j,2]==i){
+    a[j,5]=freq[freq$Var1==i]
+  }
+}
+}
+View(a)
+```
+
+```{r}
+
+a<- t20_df
+a = a[, c("MatchNo", "NumOutcome", "Wickets", "Over")]
+b <-a[, c("MatchNo", "NumOutcome")]
+a<-a %>%
+  group_by(MatchNo, NumOutcome,Wickets,Over) %>%
+  dplyr::summarise(n = n())%>%
+mutate(freq = n / sum(n))
+View(a)
+ggplot(a, mapping = aes(x = Over, y = Wickets, fill = NumOutcome )) + geom_tile()+ylim(0,10)+ scale_fill_gradientn(colors = hcl.colors(20, "RdYlGn"))
+```
+
+```{r}
+#Calculation of Relative Frequency for each run
+a<- t20_df
+a = a[, c("MatchNo", "NumOutcome", "Wickets", "Over")]
+b <-a[, c("MatchNo", "NumOutcome")]
+a<-a %>%
+  group_by(MatchNo, NumOutcome,Wickets,Over) %>%
+  dplyr::summarise(n = n())%>%
+mutate(freq = n / sum(n))
+View(a)
+
+ggplot(a, mapping = aes(x = Over, y = Wickets, fill = n )) + geom_tile()+ylim(0,10)+ scale_fill_gradientn(colors = hcl.colors(20, "RdYlGn"))
+
+#A graph with some sense
+a<-a %>%
+     group_by(NumOutcome,Wickets,Over) %>%
+     dplyr::summarise(n = n())%>%
+     mutate(freq = n / sum(n))
+ggplot(a, mapping = aes(x = Over, y = Wickets, fill = n )) + geom_tile()+ylim(0,10)+ scale_fill_gradientn(colors = hcl.colors(20, "RdYlGn"))
+#Outcome of every Ball scored in T20 Innings 
+ggplot(a, mapping = aes(x = Over, y = Wickets, fill = NumOutcome )) + geom_tile()+ylim(0,10)+ scale_fill_gradientn(colors = hcl.colors(20, "RdYlGn"))
+```
+
+```{r}
+#Exceptional Runs Final
+a<- df
+a$NumOutcome[a$NumOutcome == -1]<-0
+a <- subset(a,NumOutcome %in% c(3,5,7))
+a<-a %>%
+     group_by(MatchNo,NumOutcome,Wickets,Over) %>%
+     dplyr::summarise(n = n())%>%
+     mutate(freq = n / sum(n))
+ggplot(a, mapping = aes(x = Over, y = Wickets, fill = NumOutcome )) + geom_tile()+ylim(0,10)+ scale_fill_gradientn(colors = hcl.colors(20, "RdYlGn"))
+
+```
+
+```{r}
+#Bubble Chart Final
+a<- df
+a$NumOutcome[a$NumOutcome == -1]<-0
+a <- subset(a,NumOutcome %in% c(3,5,7))
+a<-a %>%
+     group_by(MatchNo,NumOutcome,Wickets,Over,Inning) %>%
+     dplyr::summarise(n = n())%>%
+     mutate(freq = n / sum(n))
+
+ggplot(a, aes(x=Over, y=Wickets, size = Inning,color=NumOutcome)) +
+    geom_point(alpha=0.7)
+```
+
+
+
+
+#Question 3
+#Kmeans
+
+**Scaling of Variables:**
+
+
+Graph is left
+
+```{r}
+
+#Convert categorical variables to numeric
+gamelog = df
+
+matches <- unique(gamelog$MatchNo)
+
+```
+
+
+```{r}
+df_matches = ddply( gamelog, "MatchNo" , summarize , 
+total_runs = sum( pmax(NumOutcome, 0)) , 
+#total_wickets = length(which(NumOutcome == 1)), 
+
+fielder_mentions = length(which(Fielder != "")),
+balls_until_1st_wicket = length(which(Wickets == 0)) , 
+average_wickets_in_during_match = mean(Wickets, na.rm=TRUE), 
+format=Format[1], 
+teamBowling = TeamBowling[1],
+teamBatting = TeamBowling[1] 
+)
+```
+
+#Fielder Mentions
+```{r}
+df_matches = ddply( gamelog, "MatchNo" , summarize , 
+total_runs = sum( pmax(NumOutcome, 0)) , 
+#total_wickets = length(which(NumOutcome == 1)), 
+
+fielder_mentions = length(which(Fielder != "")),
+balls_until_1st_wicket = length(which(Wickets == 0)) , 
+average_wickets_in_during_match = mean(Wickets, na.rm=TRUE), 
+format=Format[1], 
+teamBowling = TeamBowling[1],
+teamBatting = TeamBowling[1] 
+)
+
+```
+
+
+#Games with Early Wickets, High scoring, Average Wickets and Fielder Mentions
+```{r}
+
+
+df_kmeans = subset(df_matches, select = c(total_runs, average_wickets_in_during_match,balls_until_1st_wicket,fielder_mentions
+                                      ))
+
+df_kmeans = na.omit(df_kmeans)
+wssd <- rep(NA,9)
+for(k in 2:10)
+ {
+     emo_clust <- kmeans(df_kmeans, centers = k)
+     wssd[k-1] <- emo_clust$tot.withinss
+}
+
+ centers <- 2:10
+ dat <- data.frame(centers, wssd)
+ gr3 <- ggplot(dat, aes(x=centers, y=wssd)) +
+     geom_line() + 
+     geom_point() +
+     xlab("number of clusters") +
+     ylab("WSSD")
+ plot(gr3)
+ 
+#Choosing number of clusters as 4
+
+emo_clust_4 <- kmeans(df_kmeans, centers = 4)
+emo_clust_4$centers
+
+msd <- sqrt(emo_clust_4$withinss / emo_clust_4$size)
+print(msd)
+
+print(emo_clust_4$size)
+
+
+#Plot the graphs
+#ggplot(df_matches, mapping=aes(x=total_runs,y=total_wickets)) + geom_density_2d_filled()
+
+
+
+
+```
+
+
+#Games with Early Wickets, High scoring, Average Wickets
+```{r}
+runs_1stinning = sum(pmax(numOutcome*1(inning == 1), 0)))
+
+df_kmeans = subset(df_matches, select = c(total_runs, average_wickets_in_during_match,balls_until_1st_wicket
+                                      ))
+
+df_kmeans = na.omit(df_kmeans)
+wssd <- rep(NA,9)
+for(k in 2:10)
+ {
+     emo_clust <- kmeans(df_kmeans, centers = k)
+     wssd[k-1] <- emo_clust$tot.withinss
+}
+
+ centers <- 2:10
+ dat <- data.frame(centers, wssd)
+ gr3 <- ggplot(dat, aes(x=centers, y=wssd)) +
+     geom_line() + 
+     geom_point() +
+     xlab("number of clusters") +
+     ylab("WSSD")
+ plot(gr3)
+ 
+#Choosing number of clusters as 4
+
+emo_clust_4 <- kmeans(df_kmeans, centers = 4)
+emo_clust_4$centers
+
+msd <- sqrt(emo_clust_4$withinss / emo_clust_4$size)
+print(msd)
+
+print(emo_clust_4$size)
+
+
+#Plot the graphs
+ggplot(df_matches, mapping=aes(x=total_runs,y=total_wickets)) + geom_density_2d_filled()
+

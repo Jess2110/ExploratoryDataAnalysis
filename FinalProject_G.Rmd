@@ -1,0 +1,414 @@
+---
+title: "Final Project"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+
+# Question 1
+
+```{r}
+setwd("/Users/jessicasaini/Desktop/UoW/Stat 847/Final Project")
+
+library(GGally)
+library(mice)
+library(sentimentr)
+library(plyr)
+library(tidyverse)
+
+```
+
+## Reading The data
+```{r}
+df = read.csv("Gamelog T20I Stat 847.csv")
+head(df)
+```
+##Question 1
+Make summary statistics (25 of 100 points)
+
+**Answer**:
+Variables used: Over, Wickets and NumOutcome. The data is grouped by  MatchNo, NumOutcome,Wickets and Over and frequency of the variable is calculated for T20 dataset.
+
+```{r}
+t20_df = subset(df, df$Format=="T20I")
+head(t20_df)
+
+
+#Change -1 in NumOutcome to 0 
+t20_df$NumOutcome[t20_df$NumOutcome == -1]<-0
+```
+
+**HeatMap of Outcome of a Ball over Wickets and Over**
+
+Variables used: Over, Wickets and NumOutcome
+
+Approach: The data is grouped by  MatchNo, NumOutcome,Wickets and Over and frequency of the variable is calculated for T20 dataset. The dataset is grouped by MatchNo, NumOutcome, Wickets and Over and frequency of the variables is calculated. The heatmap showcases the different trends observed when visualising and grouping the data by above mentioned variables. 
+
+
+```{r}
+
+a<- t20_df
+a = a[, c("MatchNo", "NumOutcome", "Wickets", "Over")]
+a<-a %>%
+  group_by(MatchNo, NumOutcome,Wickets,Over) %>%
+  dplyr::summarise(n = n())%>%
+mutate(freq = n / sum(n))
+#View(a)
+ggplot(a, mapping = aes(x = Over, y = Wickets, fill = NumOutcome )) + geom_tile()+ylim(0,10)+ scale_fill_gradientn(colors = hcl.colors(20, "RdYlGn"))
+```
+
+**Inference:**
+Inference:  The above graph depicts the outcome of the ball i.e. (0,1,2,3,4,5,6,7) as a function of Overs and Wickets. All games start in the upper-left corner, with 20 overs and 10 wickets remaining. The following observations can be made from the heatmap: 
+
+-	Most of the runs scored are between 0 and 2.
+-	Wickets 1 to 4 have higher chances of hitting a six and a boundary. This could be because the initial players are primarily batsmen and have a more chance of scoring higher runs than the later wickets. 
+-	In the above chart, most of the sixes happen after the 15th over. As the game approaches the end, it is common for the batsman to hit a six in order to score more runs for his team. 
+-	The light green square box after the 15th over and Wicket 5 onwards, indicates that the players try to score more boundaries (just like the sixes), as the game comes to a conclusion. 
+
+## Bubble Chart
+
+
+Variables Used: Wickets, Over, Innings and Runs scored on the ball(NumOutcome)
+
+**Approach:** The runs 3, 5 and 7 are rare in cricket. The dataset is grouped by MatchNo,Inning, NumOutcome, Wickets and Over. The frequency of the variables is calculated. The bubble chart showcases the different trends observed when visualising and grouping the data by above mentioned variables.
+The following graph visualizes the chances of a ball fetching 3, 5 and 7. 
+
+
+```{r}
+#Bubble Chart Final for Balls with 3, 5 and 7 runs
+a<- df
+a$NumOutcome[a$NumOutcome == -1]<-0
+a <- subset(a,NumOutcome %in% c(3,5,7))
+a <- subset(a,Wickets<11)
+
+print(unique(a$NumOutcome))
+```
+
+```{r}
+a<-a %>%
+     group_by(MatchNo,NumOutcome,Wickets,Over,Inning) %>%
+     dplyr::summarise(n = n())%>%
+     mutate(freq = n / sum(n))
+
+
+ggplot(a, aes(x=Over, y=Wickets, size = as.factor(Inning),color=as.factor(NumOutcome))) +
+    geom_point(alpha=0.7)+ ggtitle("Scoring Rare runs over Wickets, Overs and Innings")
+```
+
+Inference: 
+
+-	The larger bubble represent the rare runs scored during second inning whereas the smaller bubbles represent the rare runs scored during first inning. 
+-	Rare Runs(3,5 and 7) are common both during the first and the second inning
+-	7 are the rarest whereas 3 runs are common. 
+-	5 runs are more prominent in the first 10 overs.
+
+
+**Additional trends found during analysis: **
+```{r}
+#HeatMap 2
+a<- df
+a$NumOutcome[a$NumOutcome == -1]<-0
+a <- subset(a,NumOutcome %in% c(3,5,7))
+a<-a %>%
+     group_by(MatchNo,NumOutcome,Wickets,Over,Inning) %>%
+     dplyr::summarise(n = n())%>%
+     mutate(freq = n / sum(n))
+
+ggplot(a, mapping = aes(x = Over, y = Wickets, fill = Inning )) + geom_tile()+ylim(0,10)+ scale_fill_gradientn(colors = hcl.colors(20, "RdYlGn"))+ ggtitle("Wickets lost at different overs in two innings in IPL")
+```
+
+
+Approach: 
+The dataset is grouped by MatchNo,Inning, NumOutcome, Wickets and Over. The data is visualized for Over, Wickets and Inning. 
+
+Inference: 
+- During the second innings, the teams lose around 3 wickets in the first 5 overs. 
+- In the first innings, the first 3 wickets are majorily lost after 5 overs
+
+ 
+## Question 2 Identify second inning ‘turning points’
+Filter the data for second innings only and use the sentiment package to calculate the sentiment score. 
+
+```{r}
+
+#Question 2 :  Identify second inning ‘turning points’
+
+#Filter inning 2 data
+setwd("/Users/jessicasaini/Desktop/UoW/Stat 847/Final Project")
+df = read.csv("Gamelog T20I Stat 847.csv")
+library(dplyr)
+dat2 = filter(df , Inning == 2) #filter for second inning only
+#View(dat2)
+
+dat2 <- subset(dat2, !is.na(dat2$FullNotes))
+
+dat2$FullNotes <- as.character(dat2$FullNotes)
+dat2 <- dat2[-c(21815) , ]
+
+sentiment = sentiment_by(dat2$FullNotes) # sentiment Df 
+dat2$sentiment_score = sentiment$ave_sentiment # ave_sentiment is sentiment score
+```
+
+
+```{r}
+#View first few sentiment scores and check range of sentiment scores
+head(dat2$sentiment_score)
+min(dat2$sentiment_score)
+max(dat2$sentiment_score)
+```
+
+After calculating the sentiment score, the next step is to filter the data based on extreme sentiments. The range of sentiment scores is  from approx. -1.5 to 1.6. Higher the absolute value of the score, extreme is the sentiment.  
+Filtering the balls in terms of extreme positive and negative sentiment based on a threshold.
+
+### Positive Sentiment Ball by Ball Analysis
+
+```{r}
+positive_sentiment_df = filter(dat2, dat2$Over > 13 & dat2$sentiment_score > 0.7)
+print("The number of rows")
+print(nrow(positive_sentiment_df))
+head(positive_sentiment_df)
+```
+
+### Negative Sentiment Ball by Ball Analysis
+
+```{r}
+
+negative_sentiment_df = filter(dat2, dat2$Over > 13 & sentiment_score < - 0.9)
+print("The number of rows")
+nrow(negative_sentiment_df)
+head(negative_sentiment_df)
+```
+
+
+The total number of combined observations includes positive and negative. We need to construct a diverse 
+### Constructing the Highlight Reel
+
+
+For Positive Sentiment:
+```{r}
+positive_boundaries = filter(positive_sentiment_df, positive_sentiment_df$NumOutcome == 4)
+positive_sixes = filter(positive_sentiment_df, positive_sentiment_df$NumOutcome == 6)
+positive_exceptions = filter(positive_sentiment_df, positive_sentiment_df$NumOutcome %in% c(5,7))
+positive_wickets = filter(positive_sentiment_df, positive_sentiment_df$BallType == "out")
+positive_wides = filter(positive_sentiment_df, positive_sentiment_df$BallType == "wide")
+positive_sentiment = bind_rows(positive_boundaries,positive_sixes,positive_exceptions,positive_wickets,positive_wides)
+head(positive_sentiment)
+#View(positive_sentiment)
+```
+
+For Negative examples 
+```{r}
+negative_boundaries = filter(negative_sentiment_df, negative_sentiment_df$NumOutcome == 4)
+negative_sixes = filter(negative_sentiment_df, negative_sentiment_df$NumOutcome == 6)
+negative_exceptions = filter(negative_sentiment_df, negative_sentiment_df$NumOutcome %in% c(5,7))
+negative_wickets = filter(negative_sentiment_df, negative_sentiment_df$BallType == "out")
+negative_wides = filter(negative_sentiment_df, negative_sentiment_df$BallType == "wide")
+negative_sentiment = bind_rows(negative_boundaries,negative_sixes,negative_exceptions,negative_wickets,negative_wides)
+print(negative_sentiment)
+
+#head(negative_sentiment)
+```
+
+##Highlight Reel 
+
+
+```{r}
+reel = bind_rows(positive_sentiment,negative_sentiment)
+reel2 = data.frame(reel)
+
+print(reel2[1:20,])
+```
+
+**Highlight Reel**: After calculating the sentiment score, the next step is to filter the data based on extreme sentiments. The range of sentiment scores is  from approx. -1.5 to 1.6. Higher the absolute value of the score, extreme is the sentiment.  Filter the data in terms of extreme positive and negative sentiment based on a threshold. After the data is filtered, we constructed a highlight right for 20 balls. Since most of the turning points in the second innings during the last over, the data is filtered 6 overs. 
+The highlight reel as mentioned above contains sixes, wickets, boundaries, rare runs and wides for both positive and negative sentiment. 
+
+## Question 3 Find a meaningful clustering of matches (25 of 100 points)
+
+
+```{r}
+df =  read.csv("Gamelog T20I Stat 847.csv")
+df6 = df
+df_matches = ddply( df6, "MatchNo" , summarize , 
+total_runs = sum( pmax(NumOutcome, 0)) , 
+ fielder_mentions = length(which(Fielder != "")),
+balls_until_1st_wicket = length(which(Wickets == 0)) , 
+average_wickets_in_during_match = mean(Wickets, na.rm=TRUE), 
+format=Format[1], 
+teamBowling = TeamBowling[1],
+teamBatting = TeamBowling[1] 
+)
+
+```
+
+#Games with Early Wickets, High scoring, Average Wickets and Fielder Mentions
+
+```{r}
+df_kmeans = subset(df_matches, select = c(total_runs, average_wickets_in_during_match,balls_until_1st_wicket,fielder_mentions
+                                      ))
+
+df_kmeans = na.omit(df_kmeans)
+wssd <- rep(NA,9)
+
+for(k in 2:9)
+ {
+     emo_clust <- kmeans(df_kmeans, centers = k)
+     wssd[k-1] <- emo_clust$tot.withinss
+}
+
+ centers <- 2:10
+ dat <- data.frame(centers, wssd)
+ gr3 <- ggplot(dat, aes(x=centers, y=wssd)) +
+     geom_line() + 
+     geom_point() +
+     xlab("number of clusters") +
+     ylab("WSSD")
+ plot(gr3)
+ 
+#Choosing number of clusters as 4
+
+k_mean_cluster <- kmeans(df_kmeans, centers = 4)
+k_mean_cluster$centers
+
+msd <- sqrt(k_mean_cluster$withinss / k_mean_cluster$size)
+
+```
+
+**Approach:** In this question, k-means clustering is used for the Games with Early Wickets, High scoring, Average Wickets and Fielder Mentions. 
+First of all, "MatchNo" is used for identifying unique values. Then we summarize the data for those rows into new variables. NA values are handled and a graph for choosing the right number of clusters is used. 
+
+**Justification on Choice of Cluster**: 
+Within Cluster Sum of Squares (WCSS) measures the squared average distance of all the points within a cluster to the cluster centroid. K-means consists of two major steps that attempt to minimize the sum of WSSDs over all the clusters. If we plot the total WSSD versus the number of clusters, we see that the decrease in total WSSD levels off (or forms an “elbow shape”) when we reach roughly the right number of clusters. In our graph, cluster size=4 is optimal based on the elbow method. 
+
+**Features of Each Cluster**
+- Games with Early Wickets, High scoring, Average Wickets and Fielder Mentions
+
+**Interpretation:**
+- In Cluster 1: Highest scoring games with around 50 balls until the first wicket and around 27 fielder mentions and 2.4 average wickets per match balls are present in cluster 1. 
+
+- In Cluster 2: Games with scores of around 335 with 53 balls until the first wicket and around 22 fielder mentions and 2.3 average wickets per match balls are present in cluster 2. 
+
+- In Cluster 3: Games with scores around 700 but with highest balls until frst wicket and highest fielder mentions with highest average wickets during match are present in Cluster 3. 
+
+- In Cluster 4: Least scoring games with least balls until the first wicket and least field mentions with 2.7 average wickets during match are present in Cluster 4.
+
+## Question 4 Optimize Duckworth-Lewis
+
+```{r}
+
+df10 = read.csv("Gamelog T20I Stat 847.csv")
+df10 = subset(df10, !is.na(MatchNo))
+df10 = subset(df10, Inning %in% c(1))
+df10$over2 <- df10$Over + df10$Ball/6
+matches <- unique(df10$MatchNo)
+
+df <- data.frame(Match=numeric(),
+                 Innings1=numeric())
+count <- 0
+Runs1 <- 0
+
+#Calculate the table for total runs scored in first innings of each match
+for(i in matches)
+  {
+  dataset <- subset(df10, MatchNo %in% i)
+  dataset <- subset(dataset, !is.na(NumOutcome))
+  Runs1 <- 0
+  for(j in 1:nrow(dataset))
+    {
+    row <- dataset[j,]
+    Runs1 <- Runs1 + row$NumOutcome
+  }
+  new <- c(i, Runs1)
+  df[nrow(df) + 1, ] <- new
+}
+
+
+count <- 0
+Runs1 <- 0
+prop <- c()
+counter <- 1
+
+
+#Calculate the proportion
+
+
+for(i in matches)
+  {
+  dataset <- subset(df10, MatchNo %in% i)
+  dataset <- subset(dataset, !is.na(NumOutcome))
+  
+  Runs1 <- 0
+  for(j in 1:nrow(dataset))
+    {
+    row <- dataset[j,]
+    Runs1 <- Runs1 + row$NumOutcome
+    if(df10$MatchNo[counter]==i) 
+    {
+
+
+    prop <- c(prop, Runs1/df$Innings1[counter])
+    }
+  }
+  counter <- counter + 1
+}
+```
+#Define Loss Function
+
+```{r}
+loss_function = function(x, prop)
+{
+
+A = x[1]
+B = x[2]
+C = x[3]
+D = x[4] #Interaction variable
+
+prop_smooth = A*(df10$over2) + B*((df10$Wickets)) + C*(df10$over2)^2 + D*(df10$Wickets*df10$over2)
+
+
+error = sum( (prop - prop_smooth)^2)
+return(error)
+
+}
+```
+
+```{r}
+#Reference Additional Guidance File
+options(warn = -1) 
+best_params = optim(par=c(0,0,0,0), loss_function, prop=prop)$par
+
+A = best_params[1]
+B = best_params[2]
+C = best_params[3]
+D = best_params[4]
+
+
+newDLT = matrix(NA, nrow=20, ncol=10)
+
+for(overcount in 1:20)
+{
+
+newDLT[overcount,] = 1 - A*overcount + B*(9:0) + C*overcount^2 + D*(9:0)
+}
+
+range = max(newDLT) - min(newDLT)
+newDLT2 = round((newDLT - min(newDLT)) / range, 3)
+newDLT2
+
+```
+
+
+
+
+Inference: 
+
+Resource numbers represent the proportion of runs that a team is expected to still score in a match, given the current overs and wickets lost. For example, teams at the beginning of their 7th over with 3 wickets lost have 0.776  resource.
+
+The 'optim' function was used to optimize the Duckworth Lewis Table (DLT).  First of all, the total runs were calculated along with the proportion of runs scored at a particular ball for a team. The smoothing function involves 4 variables: 
+prop_smooth = A*(df10$over2) + B*((df10$Wickets)) + C*(df10$over2)^2 + D*(df10$Wickets*df10$over2). 
+
+**Comparison**:
+
+Comparing the obtained DLT to the given DLT, it can be observed somewhat similar results have been
+obtained considering the 12th over, 50% of the resources have been utilized while scoring 50% of the runs. At 12th over 4th wicket, 54.6% resources are utilised as compared 11th over and 4th wicket. This proves that the Duckworth Lewis Table has been optimized. 
